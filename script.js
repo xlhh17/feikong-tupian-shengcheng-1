@@ -9,12 +9,19 @@ const state = {
   logoName: "",
   weight: "10斤",
   brand: "邻家饭香",
+  productTitle: "东北大米",
   marketing: "黑土种植\n一年一季\n鸭稻共生",
+  productTitleTouched: false,
+  marketingTouched: false,
   generated: false,
   lastSize: null,
   pendingDownloadUrl: "",
   pendingDownloadFilename: "",
 };
+
+const DEFAULT_PRODUCT_TITLE = "东北大米";
+const DEFAULT_MARKETING = "黑土种植\n一年一季\n鸭稻共生";
+const SELLING_POINTS = ["黑土种植", "一年一季", "鸭稻共生"];
 
 const canvas = document.querySelector("#previewCanvas");
 const ctx = canvas.getContext("2d");
@@ -49,9 +56,11 @@ const fieldNodes = {
   modalLogoName: document.querySelector("#modalLogoName"),
   weightInput: document.querySelector("#weightInput"),
   brandInput: document.querySelector("#brandInput"),
+  productTitleInput: document.querySelector("#productTitleInput"),
   marketingInput: document.querySelector("#marketingInput"),
   weightSummary: document.querySelector("#weightSummary"),
   brandSummary: document.querySelector("#brandSummary"),
+  productTitleSummary: document.querySelector("#productTitleSummary"),
   copySummary: document.querySelector("#copySummary"),
   generatedSummary: document.querySelector("#generatedSummary"),
 };
@@ -85,6 +94,7 @@ function closeDialog(dialog) {
 function markDirty(message) {
   state.generated = false;
   state.lastSize = null;
+  revokePendingDownload();
   statusText.textContent = message;
   refreshSummary();
 }
@@ -205,7 +215,7 @@ function drawMerchantLogo(ctxToUse) {
   ctxToUse.stroke();
 }
 
-function drawBottomRibbon(ctxToUse) {
+function drawBottomRibbon(ctxToUse, promptSettings = {}) {
   const weightMain = (state.weight || "10斤").replace(/\s/g, "");
   const numberPart = weightMain.match(/\d+/)?.[0] || weightMain;
   const unitPart = weightMain.replace(numberPart, "") || "斤";
@@ -229,9 +239,15 @@ function drawBottomRibbon(ctxToUse) {
   ctxToUse.clip();
 
   const greenGradient = ctxToUse.createLinearGradient(176, top, right, bottom);
-  greenGradient.addColorStop(0, "#6ecb39");
-  greenGradient.addColorStop(0.38, "#37a91f");
-  greenGradient.addColorStop(1, "#188917");
+  if (promptSettings.greenStyle) {
+    greenGradient.addColorStop(0, "#8ee65c");
+    greenGradient.addColorStop(0.38, "#2fad25");
+    greenGradient.addColorStop(1, "#0b741f");
+  } else {
+    greenGradient.addColorStop(0, "#6ecb39");
+    greenGradient.addColorStop(0.38, "#37a91f");
+    greenGradient.addColorStop(1, "#188917");
+  }
   ctxToUse.fillStyle = greenGradient;
   ctxToUse.fillRect(176, top + 18, right - 176, bottom - top - 18);
 
@@ -243,9 +259,15 @@ function drawBottomRibbon(ctxToUse) {
   ctxToUse.fillRect(176, top + 18, right - 176, bottom - top - 18);
 
   const goldGradient = ctxToUse.createLinearGradient(left, top, 266, bottom);
-  goldGradient.addColorStop(0, "#ffe08a");
-  goldGradient.addColorStop(0.45, "#f6c557");
-  goldGradient.addColorStop(1, "#eaa23a");
+  if (promptSettings.warmStyle || promptSettings.cleanStyle) {
+    goldGradient.addColorStop(0, "#fff0bc");
+    goldGradient.addColorStop(0.45, "#f8cf68");
+    goldGradient.addColorStop(1, "#eaa43f");
+  } else {
+    goldGradient.addColorStop(0, "#ffe08a");
+    goldGradient.addColorStop(0.45, "#f6c557");
+    goldGradient.addColorStop(1, "#eaa23a");
+  }
   ctxToUse.fillStyle = goldGradient;
   ctxToUse.save();
   ctxToUse.beginPath();
@@ -335,21 +357,98 @@ function splitMarketingText() {
     .slice(0, 3);
 }
 
+function splitProductTitle(title) {
+  const text = (title || "东北大米").replace(/\s/g, "");
+  if (text.length <= 2) return [text];
+  if (text.length <= 4) return [text.slice(0, 2), text.slice(2)];
+  return [text.slice(0, 3), text.slice(3, 6)];
+}
+
+function parsePromptSettings() {
+  const prompt = promptInput.value.trim();
+  const noReference = /不要参考/.test(prompt);
+
+  return {
+    cleanStyle: /高级|简洁/.test(prompt),
+    warmStyle: /米黄|暖色/.test(prompt),
+    greenStyle: /绿色|生态/.test(prompt),
+    highlightProduct: /突出产品|产品居中/.test(prompt),
+    useReference: /参考布局|参考样式图/.test(prompt) && !noReference,
+    noReference,
+  };
+}
+
+function extractPromptTitle() {
+  const match = promptInput.value.match(/(?:主标题|标题)\s*[:：]\s*([^\n，,。；;]+)/);
+  return match?.[1]?.trim() || "";
+}
+
+function extractPromptSellingPoints() {
+  const prompt = promptInput.value;
+  return SELLING_POINTS.filter((point) => prompt.includes(point));
+}
+
+function syncMetadataInputs() {
+  if (fieldNodes.productTitleInput) fieldNodes.productTitleInput.value = state.productTitle || DEFAULT_PRODUCT_TITLE;
+  if (fieldNodes.marketingInput) fieldNodes.marketingInput.value = state.marketing || DEFAULT_MARKETING;
+}
+
+function applyPromptAutofill() {
+  const promptTitle = extractPromptTitle();
+  const titleInputEmpty = !fieldNodes.productTitleInput.value.trim();
+  if (promptTitle && (!state.productTitleTouched || titleInputEmpty)) {
+    state.productTitle = promptTitle;
+  }
+
+  const points = extractPromptSellingPoints();
+  const marketingInputEmpty = !fieldNodes.marketingInput.value.trim();
+  const canFillMarketing = !state.marketingTouched || marketingInputEmpty || !state.marketing.trim();
+  if (points.length && canFillMarketing) {
+    const existing = splitMarketingText();
+    const merged = [...new Set([...existing, ...points])].slice(0, 3);
+    state.marketing = merged.join("\n");
+  }
+
+  syncMetadataInputs();
+}
+
 function buildGeneratePrompt() {
+  const settings = parsePromptSettings();
   return [
     `生成需求：${promptInput.value.trim() || "参考样式图完成商品广告图生成"}`,
     `品牌：${state.brand || "邻家饭香"}`,
+    `商品主标题：${state.productTitle || "东北大米"}`,
     `底部固定编号区域信息：${state.weight || "10斤"}`,
     `营销文字：${splitMarketingText().join("、") || "黑土种植、一年一季、鸭稻共生"}`,
     `参考样式图：${state.referenceName || "未上传"}`,
     `原始产品图：${state.originalName || "未上传"}`,
     `产品品牌 logo：${state.logoName || "默认商家 logo"}`,
+    `解析参数：${JSON.stringify(settings)}`,
   ].join("\n");
 }
 
 function drawGeneratedImage(targetCanvas, size) {
   const targetCtx = targetCanvas.getContext("2d");
   const scale = size / 670;
+  const promptSettings = parsePromptSettings();
+  const backgroundColor = promptSettings.warmStyle
+    ? "#d18455"
+    : promptSettings.greenStyle
+      ? "#5f9952"
+      : "#ca7048";
+  const panelColor = promptSettings.cleanStyle || promptSettings.warmStyle ? "#fffdf7" : "#fff8ef";
+  const leftPanelWidth = promptSettings.cleanStyle ? 304 : 292;
+  const productBox = promptSettings.highlightProduct
+    ? { x: 292, y: 32, width: 344, height: 536 }
+    : promptSettings.cleanStyle
+      ? { x: 330, y: 58, width: 270, height: 486 }
+      : { x: 316, y: 40, width: 306, height: 548 };
+  const referenceAlpha = promptSettings.noReference
+    ? 0
+    : promptSettings.useReference
+      ? (promptSettings.cleanStyle ? 0.035 : 0.075)
+      : 0;
+
   targetCanvas.width = size;
   targetCanvas.height = size;
   targetCtx.save();
@@ -357,23 +456,32 @@ function drawGeneratedImage(targetCanvas, size) {
   targetCtx.imageSmoothingQuality = "high";
   targetCtx.scale(scale, scale);
 
-  targetCtx.fillStyle = "#ca7048";
+  targetCtx.fillStyle = backgroundColor;
   targetCtx.fillRect(0, 0, 670, 670);
 
   drawRoundRect(targetCtx, 14, 18, 642, 634, 24);
-  targetCtx.fillStyle = "#fffdf7";
+  targetCtx.fillStyle = panelColor;
   targetCtx.fill();
 
   targetCtx.fillStyle = "#ffffff";
-  targetCtx.fillRect(24, 28, 292, 560);
+  targetCtx.fillRect(24, 28, leftPanelWidth, 540);
+
+  if (state.referenceImage && referenceAlpha > 0) {
+    targetCtx.save();
+    drawRoundRect(targetCtx, 14, 18, 642, 634, 24);
+    targetCtx.clip();
+    targetCtx.globalAlpha = referenceAlpha;
+    fitImage(targetCtx, state.referenceImage, 14, 18, 642, 634, "cover");
+    targetCtx.restore();
+  }
 
   targetCtx.save();
-  drawRoundRect(targetCtx, 316, 40, 306, 548, 8);
+  drawRoundRect(targetCtx, productBox.x, productBox.y, productBox.width, productBox.height, 8);
   targetCtx.clip();
-  targetCtx.fillStyle = "#f7edd8";
-  targetCtx.fillRect(316, 40, 306, 548);
+  targetCtx.fillStyle = promptSettings.warmStyle ? "#f8edda" : "#f7edd8";
+  targetCtx.fillRect(productBox.x, productBox.y, productBox.width, productBox.height);
   if (state.originalImage) {
-    fitImage(targetCtx, state.originalImage, 316, 40, 306, 548, "cover");
+    fitImage(targetCtx, state.originalImage, productBox.x, productBox.y, productBox.width, productBox.height, "cover");
   }
   targetCtx.restore();
 
@@ -386,10 +494,12 @@ function drawGeneratedImage(targetCanvas, size) {
 
   drawMerchantLogo(targetCtx);
 
+  const titleLines = splitProductTitle(state.productTitle);
   targetCtx.fillStyle = "#000000";
   targetCtx.font = "900 62px Microsoft YaHei, Arial";
-  targetCtx.fillText("东北", 82, 206);
-  targetCtx.fillText("大米", 82, 282);
+  titleLines.forEach((line, index) => {
+    targetCtx.fillText(line, 82, 206 + index * 76);
+  });
 
   const items = splitMarketingText();
   targetCtx.font = "900 28px Microsoft YaHei, Arial";
@@ -410,7 +520,7 @@ function drawGeneratedImage(targetCanvas, size) {
     drawWrappedText(targetCtx, item, 108, y, 168, 32, 1);
   });
 
-  drawBottomRibbon(targetCtx);
+  drawBottomRibbon(targetCtx, promptSettings);
 
   targetCtx.restore();
 }
@@ -425,6 +535,7 @@ function refreshSummary() {
   fieldNodes.logoState.textContent = state.logoImage ? "产品品牌 logo 已上传" : "未上传时使用默认商家 logo";
   fieldNodes.weightSummary.textContent = state.weight || "10斤";
   fieldNodes.brandSummary.textContent = state.brand || "邻家饭香";
+  fieldNodes.productTitleSummary.textContent = state.productTitle || "东北大米";
   fieldNodes.copySummary.textContent = splitMarketingText().join(" / ") || "黑土种植 / 一年一季 / 鸭稻共生";
   fieldNodes.generatedSummary.textContent = state.generated
     ? `已生成 ${state.lastSize}×${state.lastSize} JPG`
@@ -576,7 +687,8 @@ metadataForm.addEventListener("submit", (event) => {
   event.preventDefault();
   state.weight = fieldNodes.weightInput.value.trim() || "10斤";
   state.brand = fieldNodes.brandInput.value.trim() || "邻家饭香";
-  state.marketing = fieldNodes.marketingInput.value.trim() || "黑土种植\n一年一季\n鸭稻共生";
+  state.productTitle = fieldNodes.productTitleInput.value.trim() || DEFAULT_PRODUCT_TITLE;
+  state.marketing = fieldNodes.marketingInput.value.trim() || DEFAULT_MARKETING;
   markDirty("商品信息已保存");
   refreshPreview();
   closeDialog(metadataDialog);
@@ -598,8 +710,17 @@ downloadForm.addEventListener("change", () => {
 window.addEventListener("beforeunload", revokePendingDownload);
 
 promptInput.addEventListener("input", () => {
+  applyPromptAutofill();
   markDirty("需求说明已更新");
   refreshPreview();
+});
+
+fieldNodes.productTitleInput.addEventListener("input", () => {
+  state.productTitleTouched = true;
+});
+
+fieldNodes.marketingInput.addEventListener("input", () => {
+  state.marketingTouched = true;
 });
 
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {
