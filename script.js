@@ -10,6 +10,7 @@ const state = {
   weight: "10斤",
   brand: "邻家饭香",
   productTitle: "东北大米",
+  bottomText: "",
   marketing: "黑土种植\n一年一季\n鸭稻共生",
   productTitleTouched: false,
   marketingTouched: false,
@@ -57,10 +58,12 @@ const fieldNodes = {
   weightInput: document.querySelector("#weightInput"),
   brandInput: document.querySelector("#brandInput"),
   productTitleInput: document.querySelector("#productTitleInput"),
+  bottomTextInput: document.querySelector("#bottomTextInput"),
   marketingInput: document.querySelector("#marketingInput"),
   weightSummary: document.querySelector("#weightSummary"),
   brandSummary: document.querySelector("#brandSummary"),
   productTitleSummary: document.querySelector("#productTitleSummary"),
+  bottomTextSummary: document.querySelector("#bottomTextSummary"),
   copySummary: document.querySelector("#copySummary"),
   generatedSummary: document.querySelector("#generatedSummary"),
 };
@@ -344,7 +347,10 @@ function drawBottomRibbon(ctxToUse, promptSettings = {}) {
   ctxToUse.shadowOffsetX = 0;
   ctxToUse.shadowOffsetY = 0;
   ctxToUse.font = "800 32px Microsoft YaHei, Arial";
-  drawWrappedText(ctxToUse, `${state.brand || "邻家饭香"}  凤凰来仪`, 294, 633, 330, 34, 1);
+  const bottomText = state.bottomText.trim();
+  if (bottomText) {
+    drawWrappedText(ctxToUse, bottomText, 294, 633, 330, 34, 1);
+  }
 
   ctxToUse.restore();
 }
@@ -390,6 +396,7 @@ function extractPromptSellingPoints() {
 
 function syncMetadataInputs() {
   if (fieldNodes.productTitleInput) fieldNodes.productTitleInput.value = state.productTitle || DEFAULT_PRODUCT_TITLE;
+  if (fieldNodes.bottomTextInput) fieldNodes.bottomTextInput.value = state.bottomText || "";
   if (fieldNodes.marketingInput) fieldNodes.marketingInput.value = state.marketing || DEFAULT_MARKETING;
 }
 
@@ -418,6 +425,7 @@ function buildGeneratePrompt() {
     `生成需求：${promptInput.value.trim() || "参考样式图完成商品广告图生成"}`,
     `品牌：${state.brand || "邻家饭香"}`,
     `商品主标题：${state.productTitle || "东北大米"}`,
+    `底部绿色栏文案：${state.bottomText || "未填写"}`,
     `底部固定编号区域信息：${state.weight || "10斤"}`,
     `营销文字：${splitMarketingText().join("、") || "黑土种植、一年一季、鸭稻共生"}`,
     `参考样式图：${state.referenceName || "未上传"}`,
@@ -536,6 +544,7 @@ function refreshSummary() {
   fieldNodes.weightSummary.textContent = state.weight || "10斤";
   fieldNodes.brandSummary.textContent = state.brand || "邻家饭香";
   fieldNodes.productTitleSummary.textContent = state.productTitle || "东北大米";
+  fieldNodes.bottomTextSummary.textContent = state.bottomText || "未填写";
   fieldNodes.copySummary.textContent = splitMarketingText().join(" / ") || "黑土种植 / 一年一季 / 鸭稻共生";
   fieldNodes.generatedSummary.textContent = state.generated
     ? `已生成 ${state.lastSize}×${state.lastSize} JPG`
@@ -688,6 +697,7 @@ metadataForm.addEventListener("submit", (event) => {
   state.weight = fieldNodes.weightInput.value.trim() || "10斤";
   state.brand = fieldNodes.brandInput.value.trim() || "邻家饭香";
   state.productTitle = fieldNodes.productTitleInput.value.trim() || DEFAULT_PRODUCT_TITLE;
+  state.bottomText = fieldNodes.bottomTextInput.value.trim();
   state.marketing = fieldNodes.marketingInput.value.trim() || DEFAULT_MARKETING;
   markDirty("商品信息已保存");
   refreshPreview();
