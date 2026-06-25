@@ -1,0 +1,6 @@
+.agents/
+.codex/
+node_modules/
+dist/
+.DS_Store
+Thumbs.db

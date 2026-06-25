@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>图片生成测试</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="图片生成对话窗口">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AI 测试题 1</p>
+            <h1>AI 图片生成工具</h1>
+          </div>
+          <div class="status-stack">
+            <div class="status-pill" id="statusText">等待上传原始图片</div>
+            <a class="download-fallback status-download" id="pageDownloadLink" download hidden>下载生成图片到本地</a>
+          </div>
+        </header>
+
+        <section class="action-row" aria-label="主要操作">
+          <button class="tool-button primary" type="button" id="originalUploadButton">
+            <span class="button-icon" aria-hidden="true">+</span>
+            原始图片上传
+          </button>
+          <button class="tool-button" type="button" id="referenceUploadButton">
+            <span class="button-icon" aria-hidden="true">↗</span>
+            参考样式图上传
+          </button>
+          <button class="tool-button" type="button" id="downloadButton">
+            <span class="button-icon" aria-hidden="true">↓</span>
+            生成图片下载
+          </button>
+          <button class="tool-button" type="button" id="focusPromptButton">
+            <span class="button-icon" aria-hidden="true">✎</span>
+            文件生成需求说明
+          </button>
+        </section>
+
+        <input id="originalFileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+        <input id="referenceFileInput" type="file" accept="image/jpeg,image/png" hidden />
+        <input id="logoFileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+
+        <section class="main-grid">
+          <div class="preview-column">
+            <div class="preview-stage">
+              <canvas id="previewCanvas" width="670" height="670" aria-label="生成图片预览"></canvas>
+              <div class="empty-preview" id="emptyPreview">
+                <strong>生成预览</strong>
+                <span>上传原始图片并确认信息后，点击生成图片下载选择尺寸</span>
+              </div>
+            </div>
+          </div>
+
+          <aside class="side-panel" aria-label="生成设置">
+            <section class="field-group">
+              <label for="promptInput">文件生成需求说明</label>
+              <textarea
+                id="promptInput"
+                rows="7"
+                placeholder="例如：参考目标图片布局，突出东北大米，黑土种植，一年一季，鸭稻共生，保留凤凰农业主题元素。"
+              ></textarea>
+              <p class="field-hint">Prompt 输入框，生成时会与上传图片、参考样式图和商品信息一起参与模拟生成。</p>
+            </section>
+
+            <section class="image-list" aria-label="上传文件预览">
+              <div class="upload-preview">
+                <div>
+                  <span class="preview-label">原始图片</span>
+                  <strong id="originalName">未上传</strong>
+                  <small id="originalState">等待上传商品原图</small>
+                </div>
+                <img id="originalThumb" alt="原始图片预览" />
+              </div>
+              <div class="upload-preview">
+                <div>
+                  <span class="preview-label">参考样式图</span>
+                  <strong id="referenceName">未上传</strong>
+                  <small id="referenceState">用于参考布局/风格</small>
+                </div>
+                <img id="referenceThumb" alt="参考样式图预览" />
+              </div>
+              <div class="upload-preview">
+                <div>
+                  <span class="preview-label">产品品牌 logo</span>
+                  <strong id="logoName">未上传</strong>
+                  <small id="logoState">可在原始图片上传弹窗中选择</small>
+                </div>
+                <img id="logoThumb" alt="产品品牌 logo 预览" />
+              </div>
+            </section>
+
+            <section class="field-summary" aria-label="固定编号区域信息">
+              <div>
+                <span>底部固定编号区域信息</span>
+                <strong id="weightSummary">10斤</strong>
+              </div>
+              <div>
+                <span>品牌</span>
+                <strong id="brandSummary">邻家饭香</strong>
+              </div>
+              <div>
+                <span>营销文字</span>
+                <strong id="copySummary">黑土种植 / 一年一季 / 鸭稻共生</strong>
+              </div>
+              <div>
+                <span>生成状态</span>
+                <strong id="generatedSummary">尚未生成</strong>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <dialog class="modal" id="metadataDialog">
+      <form method="dialog" class="modal-body" id="metadataForm">
+        <header>
+          <p class="eyebrow">原始图片上传完成</p>
+          <h2>补充生成信息</h2>
+        </header>
+        <label>
+          底部固定编号区域信息
+          <input id="weightInput" type="text" value="10斤" autocomplete="off" />
+        </label>
+        <label>
+          产品品牌名称
+          <input id="brandInput" type="text" value="邻家饭香" autocomplete="off" />
+        </label>
+        <label>
+          营销文字
+          <textarea id="marketingInput" rows="4">黑土种植
+一年一季
+鸭稻共生</textarea>
+        </label>
+        <div class="file-picker-row">
+          <div>
+            <span class="preview-label">产品品牌 logo 上传</span>
+            <strong id="modalLogoName">未上传</strong>
+          </div>
+          <button class="tool-button" type="button" id="logoUploadButton">选择 logo</button>
+        </div>
+        <footer>
+          <button class="text-button" type="button" data-close-dialog="metadataDialog">取消</button>
+          <button class="tool-button primary" type="submit">完成</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="downloadDialog">
+      <form method="dialog" class="modal-body" id="downloadForm">
+        <header>
+          <p class="eyebrow">模拟 AI 生成</p>
+          <h2>选择输出图片精度</h2>
+        </header>
+        <p class="field-hint">点击“确定生成”后会先刷新生成预览，再导出 JPG 文件。</p>
+        <div class="resolution-options">
+          <label>
+            <input type="radio" name="resolution" value="600" checked />
+            <span>600×600</span>
+          </label>
+          <label>
+            <input type="radio" name="resolution" value="800" />
+            <span>800×800</span>
+          </label>
+        </div>
+        <footer>
+          <button class="text-button" type="button" data-close-dialog="downloadDialog">取消</button>
+          <button class="tool-button primary" type="submit">确定生成</button>
+        </footer>
+        <a class="download-fallback" id="downloadFallbackLink" download hidden>点击下载生成 JPG</a>
+      </form>
+    </dialog>
+
+    <script src="script.js"></script>
+  </body>
+</html>
