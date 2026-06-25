@@ -306,9 +306,10 @@ function drawBottomRibbon(ctxToUse) {
   ctxToUse.closePath();
   ctxToUse.clip();
   ctxToUse.fillStyle = "#ffffff";
-  ctxToUse.shadowColor = "rgba(123, 78, 0, 0.24)";
-  ctxToUse.shadowBlur = 2;
-  ctxToUse.shadowOffsetY = 2;
+  ctxToUse.shadowColor = "transparent";
+  ctxToUse.shadowBlur = 0;
+  ctxToUse.shadowOffsetX = 0;
+  ctxToUse.shadowOffsetY = 0;
   ctxToUse.font = "900 76px Microsoft YaHei, Arial";
   ctxToUse.fillText(numberPart, 38, 636);
   ctxToUse.font = "900 33px Microsoft YaHei, Arial";
@@ -316,8 +317,10 @@ function drawBottomRibbon(ctxToUse) {
   ctxToUse.restore();
 
   ctxToUse.fillStyle = "#ffffff";
-  ctxToUse.shadowColor = "rgba(0, 74, 0, 0.28)";
-  ctxToUse.shadowBlur = 2;
+  ctxToUse.shadowColor = "transparent";
+  ctxToUse.shadowBlur = 0;
+  ctxToUse.shadowOffsetX = 0;
+  ctxToUse.shadowOffsetY = 0;
   ctxToUse.font = "800 32px Microsoft YaHei, Arial";
   drawWrappedText(ctxToUse, `${state.brand || "邻家饭香"}  凤凰来仪`, 294, 633, 330, 34, 1);
 
@@ -350,6 +353,8 @@ function drawGeneratedImage(targetCanvas, size) {
   targetCanvas.width = size;
   targetCanvas.height = size;
   targetCtx.save();
+  targetCtx.imageSmoothingEnabled = true;
+  targetCtx.imageSmoothingQuality = "high";
   targetCtx.scale(scale, scale);
 
   targetCtx.fillStyle = "#ca7048";
@@ -371,13 +376,6 @@ function drawGeneratedImage(targetCanvas, size) {
     fitImage(targetCtx, state.originalImage, 316, 40, 306, 548, "cover");
   }
   targetCtx.restore();
-
-  if (state.referenceImage) {
-    targetCtx.save();
-    targetCtx.globalAlpha = 0.08;
-    fitImage(targetCtx, state.referenceImage, 14, 18, 642, 634, "cover");
-    targetCtx.restore();
-  }
 
   targetCtx.fillStyle = "#111111";
   targetCtx.font = "900 35px Microsoft YaHei, Arial";
